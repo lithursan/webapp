@@ -1147,7 +1147,7 @@ export const Orders: React.FC = () => {
                             <th scope="col" className="px-6 py-3">Total</th>
                             <th scope="col" className="px-6 py-3">Items</th>
                             <th scope="col" className="px-6 py-3">Status</th>
-                             <th scope="col" className="px-6 py-3">Outstanding</th>
+                            {currentUser?.role !== UserRole.Driver && <th scope="col" className="px-6 py-3">Outstanding</th>}
                             <th scope="col" className="px-6 py-3">Actions</th>
                           </tr>
                         </thead>
@@ -1197,31 +1197,27 @@ export const Orders: React.FC = () => {
                                       }</td>
                     <td className="px-6 py-4">{typeof order.total === 'number' ? `LKR${order.total.toLocaleString('en-IN', { maximumFractionDigits: 2 })}` : 'LKR0'}</td>
                     <td className="px-6 py-4">
-                      {(order.orderItems ?? []).filter(item => {
-                        if (currentUser?.role === UserRole.Driver && allocatedProductIds.length > 0) {
-                          return allocatedProductIds.includes(item.productId);
-                        }
-                        return true;
-                      }).map(item => {
-                        const product = products.find(p => p.id === item.productId);
-                        if (!product) return null;
-                        return (
-                          <span key={item.productId} className="inline-block mr-2 bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded text-xs">
-                            {product.name} x {item.quantity}
-                          </span>
-                        );
-                      })}
+                      <div className="flex items-center space-x-2">
+                        <span className="inline-block bg-blue-100 dark:bg-blue-700 px-2 py-1 rounded text-xs text-blue-800 dark:text-blue-200">
+                          {(order.orderItems ?? []).reduce((total, item) => total + item.quantity, 0)} items
+                        </span>
+                        <span className="text-xs text-slate-500 dark:text-slate-400">
+                          (View details to see items)
+                        </span>
+                      </div>
                     </td>
                     <td className="px-6 py-4">
                       <Badge variant={getStatusBadgeVariant(order.status)}>{order.status}</Badge>
                     </td>
-                     <td className="px-6 py-4">
-                       <div>
-                         <span className="block text-xs text-slate-600">Cheque: <span className="font-bold">{typeof order.chequeBalance === 'number' && !isNaN(order.chequeBalance) ? `LKR${order.chequeBalance.toLocaleString('en-IN', { maximumFractionDigits: 2 })}` : 'LKR0.00'}</span></span>
-                         <span className="block text-xs text-slate-600">Credit: <span className="font-bold">{typeof order.creditBalance === 'number' && !isNaN(order.creditBalance) ? `LKR${order.creditBalance.toLocaleString('en-IN', { maximumFractionDigits: 2 })}` : 'LKR0.00'}</span></span>
-                         <span className="block text-xs text-red-600">Outstanding: <span className="font-bold">{'LKR' + ((typeof order.chequeBalance === 'number' && !isNaN(order.chequeBalance) ? order.chequeBalance : 0) + (typeof order.creditBalance === 'number' && !isNaN(order.creditBalance) ? order.creditBalance : 0)).toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span></span>
-                       </div>
-                     </td>
+                    {currentUser?.role !== UserRole.Driver && (
+                      <td className="px-6 py-4">
+                        <div>
+                          <span className="block text-xs text-slate-600">Cheque: <span className="font-bold">{typeof order.chequeBalance === 'number' && !isNaN(order.chequeBalance) ? `LKR${order.chequeBalance.toLocaleString('en-IN', { maximumFractionDigits: 2 })}` : 'LKR0.00'}</span></span>
+                          <span className="block text-xs text-slate-600">Credit: <span className="font-bold">{typeof order.creditBalance === 'number' && !isNaN(order.creditBalance) ? `LKR${order.creditBalance.toLocaleString('en-IN', { maximumFractionDigits: 2 })}` : 'LKR0.00'}</span></span>
+                          <span className="block text-xs text-red-600">Outstanding: <span className="font-bold">{'LKR' + ((typeof order.chequeBalance === 'number' && !isNaN(order.chequeBalance) ? order.chequeBalance : 0) + (typeof order.creditBalance === 'number' && !isNaN(order.creditBalance) ? order.creditBalance : 0)).toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span></span>
+                        </div>
+                      </td>
+                    )}
                     <td className="px-6 py-4 flex items-center space-x-3">
                     <button onClick={() => openViewModal(order)} className="font-medium text-slate-600 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-300">View</button>
                     {canEdit && (
