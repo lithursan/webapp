@@ -31,13 +31,29 @@ export const Login: React.FC = () => {
             <div className="w-full max-w-md p-8 space-y-8 bg-white rounded-2xl shadow-lg dark:bg-slate-800">
                 <div className="text-center">
                     <div className="flex flex-col items-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 102.5 102.5" fill="currentColor" className="h-12 w-12 text-blue-600 dark:text-blue-400 mb-2">
-                          <path d="M60.3 75.8c-5.4 0-10.3 1.9-14.4 5.1-4.1-3.2-9-5.1-14.4-5.1-13.4 0-24.2 10.8-24.2 24.2v2.5h77.3v-2.5c-.1-13.4-11-24.2-24.3-24.2zM51.3 0C32.7 0 17.6 15.1 17.6 33.8v10.3c0 18.6 15.1 33.8 33.8 33.8s33.8-15.1 33.8-33.8V33.8C85 15.1 69.9 0 51.3 0zm0 67.8c-13.2 0-24-10.7-24-24V33.8c0-13.2 10.7-24 24-24s24 10.7 24 24v10.3c0 13-10.8 23.7-24 23.7z"/>
-                          <path d="M96.7 45.1c-1.3-1-3.2-1.5-5.1-1.5-3.5 0-6.8 1.4-9.2 3.8-3.7-2.9-8.4-4.6-13.5-4.6-5.1 0-9.8 1.7-13.5 4.6-2.4-2.4-5.7-3.8-9.2-3.8-1.9 0-3.8.5-5.1 1.5-6.5 4.9-10.5 12.3-10.5 20.6 0 13.4 10.8 24.2 24.2 24.2 5.4 0 10.3-1.9 14.4-5.1 4.1 3.2 9 5.1 14.4 5.1s10.3-1.9 14.4-5.1c4.1 3.2 9 5.1 14.4 5.1 13.4 0 24.2-10.8 24.2-24.2.1-8.3-3.9-15.7-10.3-20.6zM51.3 75.8c-5.4 0-10.3-1.9-14.4-5.1-4.1 3.2-9 5.1-14.4 5.1-8 0-14.9-3.9-19.1-9.8 4.2-5.9 11.1-9.8 19.1-9.8 5.4 0 10.3 1.9 14.4 5.1 4.1-3.2 9-5.1 14.4-5.1s10.3 1.9 14.4 5.1c4.1-3.2 9-5.1 14.4-5.1 8 0 14.9 3.9 19.1 9.8-4.2 5.9-11.1 9.8-19.1 9.8-5.4 0-10.3-1.9-14.4-5.1-4.1 3.2-9 5.1-14.4 5.1z"/>
-                        </svg>
-                        <h1 className="text-3xl font-bold text-blue-600 dark:text-blue-400">Shivam Distributer (Pvt) Ltd</h1>
+                        {/* Modern Company Logo */}
+                        <div className="relative mb-4">
+                            <div className="flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-700 rounded-2xl shadow-lg">
+                                <div className="flex items-center justify-center w-12 h-12 bg-white rounded-xl">
+                                    <svg className="w-8 h-8 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
+                                        <path d="M12 2L2 7v10c0 5.55 3.84 9.74 9 11 5.16-1.26 9-5.45 9-11V7l-10-5z"/>
+                                        <path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm0 6c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z" fill="white"/>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {/* Company Name with Proper Spacing */}
+                        <div className="mb-2">
+                            <h1 className="text-2xl font-bold text-slate-800 dark:text-white tracking-wide">
+                                SHIVAM
+                            </h1>
+                            <div className="text-sm font-semibold text-blue-600 dark:text-blue-400 tracking-widest">
+                                DISTRIBUTOR (PVT) LTD
+                            </div>
+                        </div>
                     </div>
-                    <p className="mt-2 text-slate-500 dark:text-slate-400">Welcome back! Please log in to your account.</p>
+                    <p className="mt-4 text-slate-500 dark:text-slate-400">Welcome back! Please log in to your account.</p>
                 </div>
                 <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
                     {error && (
