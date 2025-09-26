@@ -5,12 +5,15 @@ import { useData } from '../../contexts/DataContext';
 import { User, UserSettings } from '../../types';
 import { Switch } from '../ui/Switch';
 import { supabase } from '../../supabaseClient';
+import { useNavigate } from 'react-router-dom';
+import { emailService } from '../../utils/emailService';
 
-type SettingsTab = 'profile' | 'preferences' | 'notifications';
+type SettingsTab = 'profile' | 'preferences' | 'notifications' | 'account';
 
 export const Settings: React.FC = () => {
-  const { currentUser, updateCurrentUser } = useAuth();
+  const { currentUser, updateCurrentUser, logout } = useAuth();
   const { users, setUsers } = useData();
+  const navigate = useNavigate();
   
   const [activeTab, setActiveTab] = useState<SettingsTab>('profile');
   const [profileData, setProfileData] = useState({ name: '', email: '', avatarUrl: '', phone: '' });
@@ -112,7 +115,12 @@ export const Settings: React.FC = () => {
     alert('Preferences saved successfully!');
   };
 
-  const handleNotificationsSave = () => {
+  const handleNotificationsSave = async () => {
+      // Request browser notification permission if any notifications are enabled
+      if (notificationsData.newOrders || notificationsData.lowStockAlerts) {
+        await emailService.requestNotificationPermission();
+      }
+      
       const updatedUser: User = {
         ...currentUser,
         settings: {
@@ -122,7 +130,7 @@ export const Settings: React.FC = () => {
     };
     setUsers(users.map(u => u.id === updatedUser.id ? updatedUser : u));
     updateCurrentUser(updatedUser);
-    alert('Notification settings saved!');
+    alert('Notification settings saved! You will receive email and browser notifications based on your preferences.');
   };
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -141,6 +149,13 @@ export const Settings: React.FC = () => {
     };
     reader.readAsDataURL(file);
   }
+  };
+
+  const handleLogout = () => {
+    if (window.confirm('Are you sure you want to log out?')) {
+      logout();
+      navigate('/login');
+    }
   };
 
   const TabButton: React.FC<{tab: SettingsTab; label: string}> = ({ tab, label }) => (
@@ -164,6 +179,7 @@ export const Settings: React.FC = () => {
         <TabButton tab="profile" label="Profile" />
         <TabButton tab="preferences" label="Preferences" />
         <TabButton tab="notifications" label="Notifications" />
+        <TabButton tab="account" label="Account" />
       </div>
 
       {activeTab === 'profile' && (
@@ -281,6 +297,14 @@ export const Settings: React.FC = () => {
             <CardDescription>Manage how you receive notifications.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4 max-w-md">
+            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+              <p className="text-sm text-blue-800 dark:text-blue-300">
+                <strong>Email notifications will be sent to:</strong> {currentUser.email}
+              </p>
+              <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                You can update your email address in the Profile tab.
+              </p>
+            </div>
             <div className="flex items-center justify-between p-3 rounded-lg bg-slate-50 dark:bg-slate-700/50">
                 <div>
                     <p className="font-medium text-slate-900 dark:text-white">New Order Emails</p>
@@ -308,6 +332,62 @@ export const Settings: React.FC = () => {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {activeTab === 'account' && (
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Account Information</CardTitle>
+              <CardDescription>View your account details and manage your session.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
+                <div>
+                  <p className="text-sm font-medium text-slate-700 dark:text-slate-300">User ID</p>
+                  <p className="text-sm text-slate-600 dark:text-slate-400">{currentUser.id}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Role</p>
+                  <p className="text-sm text-slate-600 dark:text-slate-400">{currentUser.role}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Email</p>
+                  <p className="text-sm text-slate-600 dark:text-slate-400">{currentUser.email}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Name</p>
+                  <p className="text-sm text-slate-600 dark:text-slate-400">{currentUser.name}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-red-600 dark:text-red-400">Danger Zone</CardTitle>
+              <CardDescription>Actions that cannot be undone.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="p-4 border border-red-200 dark:border-red-800 rounded-lg bg-red-50 dark:bg-red-900/20">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-red-800 dark:text-red-300 font-medium">Log Out</h4>
+                    <p className="text-sm text-red-600 dark:text-red-400 mt-1">
+                      This will sign you out of your current session and redirect you to the login page.
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleLogout}
+                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+                  >
+                    Log Out
+                  </button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       )}
 
     </div>

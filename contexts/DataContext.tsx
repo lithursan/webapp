@@ -11,6 +11,7 @@ import {
     DatabaseDriverAllocation, 
     safeJsonParse 
 } from '../database-types';
+import { emailService } from '../utils/emailService';
 
 interface DataContextType {
   users: User[];
@@ -102,6 +103,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                         assignedUserId: row.assigneduserid,
                         orderItems: orderItemsResult.success ? orderItemsResult.data : [],
                         backorderedItems: [],
+                        expectedDeliveryDate: row.expecteddeliverydate,
                         chequeBalance: row.chequebalance == null || isNaN(Number(row.chequebalance)) ? 0 : Number(row.chequebalance),
                         creditBalance: row.creditbalance == null || isNaN(Number(row.creditbalance)) ? 0 : Number(row.creditbalance),
                     } as Order;
