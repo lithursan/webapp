@@ -29,6 +29,7 @@ interface DataContextType {
   suppliers: Supplier[];
   setSuppliers: Dispatch<SetStateAction<Supplier[]>>;
   refetchData: () => Promise<void>;
+  calculateCustomerOutstanding?: (customerId: string) => number;
 }
 
 export const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -335,6 +336,28 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         });
     }, []);
 
+    // Function to calculate real-time customer outstanding balance
+    const calculateCustomerOutstanding = React.useCallback((customerId: string) => {
+        if (!orders || orders.length === 0) return 0;
+        
+        const customerOrders = orders.filter(order => order.customerId === customerId);
+        const totalOutstanding = customerOrders.reduce((sum, order) => {
+            const chequeBalance = typeof order.chequeBalance === 'number' ? order.chequeBalance : 0;
+            const creditBalance = typeof order.creditBalance === 'number' ? order.creditBalance : 0;
+            return sum + chequeBalance + creditBalance;
+        }, 0);
+        
+        return totalOutstanding;
+    }, [orders]);
+
+    // Update customers with real-time outstanding balance calculation
+    const customersWithRealTimeOutstanding = React.useMemo(() => {
+        return customers.map(customer => ({
+            ...customer,
+            outstandingBalance: calculateCustomerOutstanding(customer.id)
+        }));
+    }, [customers, calculateCustomerOutstanding]);
+
     // Expose driverAllocations globally for driver order filtering whenever it changes
     React.useEffect(() => {
         (window as any).driverAllocations = driverAllocations;
@@ -425,11 +448,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         users, setUsers,
         products, setProducts,
         orders, setOrders,
-        customers, setCustomers,
+        customers: customersWithRealTimeOutstanding, setCustomers,
         driverAllocations, setDriverAllocations,
         driverSales, setDriverSales,
         suppliers, setSuppliers,
         refetchData,
+        calculateCustomerOutstanding,
     };
 
     return (

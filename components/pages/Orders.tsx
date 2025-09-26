@@ -8,6 +8,7 @@ import { useData } from '../../contexts/DataContext';
 import { supabase, fetchOrders } from '../../supabaseClient';
 import { useAuth } from '../../contexts/AuthContext';
 import { exportOrders } from '../../utils/exportUtils';
+import { emailService } from '../../utils/emailService';
 
 const formatCurrency = (amount: number, currency: string) => {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency, minimumFractionDigits: 2 }).format(amount).replace('$', `${currency} `);
@@ -623,6 +624,13 @@ export const Orders: React.FC = () => {
       
       const freshOrders = await fetchOrders();
       if (freshOrders) setOrders(freshOrders);
+      
+      // Send email notification to assigned user if enabled
+      const createdOrder = freshOrders?.find(o => o.id === newOrder.id);
+      if (createdOrder && currentUser) {
+        await emailService.sendNewOrderNotification(currentUser, createdOrder, customer.name);
+      }
+      
       alert('Order created successfully!');
     } catch (error) {
       console.error('Unexpected error creating order:', error);
@@ -783,6 +791,8 @@ export const Orders: React.FC = () => {
       }
     });
   };
+
+
 
   const handleConfirmFinalize = async (orderToProcess?: Order) => {
     const targetOrder = orderToProcess || orderToFinalize;
@@ -1823,9 +1833,9 @@ export const Orders: React.FC = () => {
                         <div className="flex-1">
                             <p className="text-sm text-slate-600 dark:text-slate-300">Grand Total: <span className="font-bold text-slate-900 dark:text-white">{formatCurrency(viewingOrder.total, currency)}</span></p>
                         </div>
-                        <div className="flex items-center space-x-2">
+                        <div className="flex flex-wrap items-center gap-2">
                            {canEdit && (
-                                <button onClick={handleSaveBalances} type="button" className="text-white bg-green-600 hover:bg-green-700 focus:ring-4 focus:outline-none focus:ring-green-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center">
+                                <button onClick={handleSaveBalances} type="button" className="text-white bg-green-600 hover:bg-green-700 focus:ring-4 focus:outline-none focus:ring-green-300 font-medium rounded-lg text-sm px-4 py-2 text-center">
                                     Save Balances
                                 </button>
                            )}
@@ -1833,12 +1843,12 @@ export const Orders: React.FC = () => {
                               <button 
                                   onClick={handleDownloadBill} 
                                   type="button" 
-                                  className="text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center"
+                                  className="text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-4 py-2 text-center"
                               >
-                                  {viewingOrder.status === OrderStatus.Delivered ? '� Download Bill' : '� Download Bill & Confirm Sale'}
+                                  {viewingOrder.status === OrderStatus.Delivered ? '📄 Download Bill' : '📄 Download Bill & Confirm Sale'}
                               </button>
                             )}
-                            <button onClick={closeViewModal} type="button" className="text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center">
+                            <button onClick={closeViewModal} type="button" className="text-white bg-slate-600 hover:bg-slate-700 focus:ring-4 focus:outline-none focus:ring-slate-300 font-medium rounded-lg text-sm px-4 py-2 text-center">
                                 Close
                             </button>
                         </div>

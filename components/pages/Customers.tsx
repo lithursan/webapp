@@ -14,7 +14,7 @@ const formatCurrency = (amount: number, currency: string) => {
 
 
 export const Customers: React.FC = () => {
-  const { customers, setCustomers, orders, products, refetchData, suppliers } = useData();
+  const { customers, setCustomers, orders, products, suppliers, refetchData } = useData();
   const { currentUser } = useAuth();
   const currency = currentUser?.settings.currency || 'LKR';
 
@@ -41,9 +41,16 @@ export const Customers: React.FC = () => {
 
 
 
+
   const openModal = (mode: 'add' | 'edit', customer?: Customer) => {
     setModalMode(mode);
-    setCurrentCustomer(customer || { name: '', email: '', phone: '', location: '', outstandingBalance: 0, avatarUrl: `https://i.pravatar.cc/100?u=new` });
+    if (mode === 'edit' && customer) {
+      // For edit mode, preserve all existing customer data including outstandingBalance
+      setCurrentCustomer({ ...customer });
+    } else {
+      // For add mode, set default values
+      setCurrentCustomer({ name: '', email: '', phone: '', location: '', outstandingBalance: 0, avatarUrl: `https://i.pravatar.cc/100?u=new` });
+    }
     setIsModalOpen(true);
   };
 
@@ -63,9 +70,37 @@ export const Customers: React.FC = () => {
     const handleSave = () => {
     (async () => {
       try {
-        if (!currentCustomer.name || !currentCustomer.email) {
-          alert('Please fill in all required fields (name and email)');
+        if (!currentCustomer.name) {
+          alert('Please fill in the customer name');
           return;
+        }
+
+        if (!currentCustomer.phone) {
+          alert('Please fill in the phone number');
+          return;
+        }
+
+        // Check if phone number already exists (only for new customers or when editing phone)
+        if (modalMode === 'add' || (modalMode === 'edit' && currentCustomer.phone !== customers.find(c => c.id === currentCustomer.id)?.phone)) {
+          const { data: existingCustomers, error: checkError } = await supabase
+            .from('customers')
+            .select('id, phone')
+            .eq('phone', currentCustomer.phone);
+          
+          if (checkError) {
+            alert(`Error checking phone number: ${checkError.message}`);
+            return;
+          }
+          
+          if (existingCustomers && existingCustomers.length > 0) {
+            // If editing, make sure it's not the same customer
+            if (modalMode === 'edit' && existingCustomers[0].id === currentCustomer.id) {
+              // Same customer, continue
+            } else {
+              alert('This phone number is already registered with another customer. Please use a different phone number.');
+              return;
+            }
+          }
         }
 
         if (modalMode === 'add') {
@@ -557,26 +592,28 @@ export const Customers: React.FC = () => {
                     />
                 </div>
                  <div>
-                    <label htmlFor="email" className="block mb-2 text-sm font-medium text-slate-900 dark:text-white">Email</label>
+                    <label htmlFor="email" className="block mb-2 text-sm font-medium text-slate-900 dark:text-white">Email <span className="text-slate-400">(Optional)</span></label>
                     <input
                         type="email"
                         id="email"
                         value={currentCustomer.email || ''}
                         onChange={(e) => setCurrentCustomer({ ...currentCustomer, email: e.target.value })}
                         className="bg-slate-50 border border-slate-300 text-slate-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-slate-700 dark:border-slate-600 dark:placeholder-slate-400 dark:text-white"
-                        required
+                        placeholder="customer@example.com (optional)"
                     />
                 </div>
                 <div>
-                    <label htmlFor="phone" className="block mb-2 text-sm font-medium text-slate-900 dark:text-white">Phone</label>
+                    <label htmlFor="phone" className="block mb-2 text-sm font-medium text-slate-900 dark:text-white">Phone Number <span className="text-red-500">*</span></label>
                     <input
                         type="tel"
                         id="phone"
                         value={currentCustomer.phone || ''}
                         onChange={(e) => setCurrentCustomer({ ...currentCustomer, phone: e.target.value })}
                         className="bg-slate-50 border border-slate-300 text-slate-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-slate-700 dark:border-slate-600 dark:placeholder-slate-400 dark:text-white"
+                        placeholder="Enter unique phone number"
                         required
                     />
+                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Each phone number must be unique</p>
                 </div>
                 <div>
                     <label htmlFor="location" className="block mb-2 text-sm font-medium text-slate-900 dark:text-white">Location</label>
@@ -591,15 +628,25 @@ export const Customers: React.FC = () => {
                     />
                 </div>
                  {modalMode === 'edit' && (
-                    <div>
-                        <label htmlFor="outstandingBalance" className="block mb-2 text-sm font-medium text-slate-900 dark:text-white">Outstanding Balance</label>
-                        <input
-                            type="number"
-                            id="outstandingBalance"
-                            value={currentCustomer.outstandingBalance || ''}
-                            onChange={(e) => setCurrentCustomer({ ...currentCustomer, outstandingBalance: parseFloat(e.target.value) || 0 })}
-                            className="bg-slate-50 border border-slate-300 text-slate-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-slate-700 dark:border-slate-600 dark:placeholder-slate-400 dark:text-white"
-                        />
+                    <div className="space-y-4">
+                        <div>
+                            <label htmlFor="outstandingBalance" className="block mb-2 text-sm font-medium text-slate-900 dark:text-white">Outstanding Balance</label>
+                            <div className="relative">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">{currency}</span>
+                                <input
+                                    type="number"
+                                    id="outstandingBalance"
+                                    value={currentCustomer.outstandingBalance || ''}
+                                    onChange={(e) => setCurrentCustomer({ ...currentCustomer, outstandingBalance: parseFloat(e.target.value) || 0 })}
+                                    className="bg-slate-50 border border-slate-300 text-slate-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 pl-12 dark:bg-slate-700 dark:border-slate-600 dark:placeholder-slate-400 dark:text-white"
+                                    readOnly
+                                />
+                            </div>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                                This amount is calculated from pending orders and payments
+                            </p>
+                        </div>
+                        
                     </div>
                 )}
             </div>

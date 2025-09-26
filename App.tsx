@@ -11,6 +11,7 @@ import { Settings } from './components/pages/Settings';
 import { Login } from './components/pages/Login';
 import { Drivers } from './components/pages/Drivers';
 import { Suppliers } from './components/pages/Suppliers';
+import { Collections } from './components/pages/Collections';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { DataProvider } from './contexts/DataContext';
@@ -37,6 +38,7 @@ const MainLayout = () => {
                         <Route path="/orders" element={<Orders />} />
                         <Route path="/customers" element={<Customers />} />
                         <Route path="/suppliers" element={<Suppliers />} />
+                        <Route path="/collections" element={<Collections />} />
                         <Route path="/drivers" element={<Drivers />} />
                         <Route path="/users" element={<UserManagement />} />
                         <Route path="/settings" element={<Settings />} />
