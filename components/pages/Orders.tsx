@@ -158,13 +158,15 @@ export const Orders: React.FC = () => {
   const [orderNotes, setOrderNotes] = useState('');
   const [orderMethod, setOrderMethod] = useState('');
   // ...existing code...
-  const { orders, setOrders, customers, products, setProducts, users, driverAllocations, refetchData } = useData();
+  const { orders, setOrders, customers, products, setProducts, users, driverAllocations, setDriverAllocations, refetchData } = useData();
   const { currentUser } = useAuth();
   const currency = currentUser?.settings.currency || 'LKR';
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>('all');
   const [productSearchTerm, setProductSearchTerm] = useState('');
+  const [deliveryDateFilter, setDeliveryDateFilter] = useState('');
+  const [dateRangeFilter, setDateRangeFilter] = useState<'today' | 'this_week' | 'this_month' | 'all'>('all');
   
   const [modalState, setModalState] = useState<'closed' | 'create' | 'edit'>('closed');
   const [currentOrder, setCurrentOrder] = useState<Order | null>(null);
@@ -335,8 +337,53 @@ export const Orders: React.FC = () => {
             order.customerName.toLowerCase().includes(lowercasedTerm)
         );
     }
+
+    // Delivery date filter
+    if (deliveryDateFilter) {
+        displayOrders = displayOrders.filter(order => {
+            const deliveryDate = order.expectedDeliveryDate || order.date;
+            if (!deliveryDate) return false;
+            
+            const orderDateStr = typeof deliveryDate === 'string' ? deliveryDate.slice(0, 10) : deliveryDate;
+            return orderDateStr === deliveryDateFilter;
+        });
+    }
+
+    // Date range filter
+    if (dateRangeFilter !== 'all') {
+        const today = new Date();
+        const todayStr = today.toISOString().slice(0, 10); // YYYY-MM-DD format
+        
+        displayOrders = displayOrders.filter(order => {
+            const deliveryDate = order.expectedDeliveryDate || order.date;
+            if (!deliveryDate) return false;
+            
+            const orderDateStr = typeof deliveryDate === 'string' ? deliveryDate.slice(0, 10) : deliveryDate;
+            const orderDate = new Date(orderDateStr);
+            
+            switch (dateRangeFilter) {
+                case 'today':
+                    return orderDateStr === todayStr;
+                case 'this_week':
+                    const startOfWeek = new Date(today);
+                    startOfWeek.setDate(today.getDate() - today.getDay()); // Sunday
+                    startOfWeek.setHours(0, 0, 0, 0);
+                    const endOfWeek = new Date(startOfWeek);
+                    endOfWeek.setDate(startOfWeek.getDate() + 6); // Saturday
+                    endOfWeek.setHours(23, 59, 59, 999);
+                    return orderDate >= startOfWeek && orderDate <= endOfWeek;
+                case 'this_month':
+                    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+                    const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+                    return orderDate >= startOfMonth && orderDate <= endOfMonth;
+                default:
+                    return true;
+            }
+        });
+    }
+
     return displayOrders.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [orders, products, statusFilter, searchTerm, currentUser]);
+  }, [orders, products, statusFilter, searchTerm, currentUser, deliveryDateFilter, dateRangeFilter]);
     
   const ordersBySupplier = useMemo(() => {
     return filteredOrders.reduce((acc, order) => {
@@ -780,9 +827,27 @@ export const Orders: React.FC = () => {
           }
           return item;
         }).filter((item: any) => item.quantity > 0); // Remove items with 0 qty
+        
         // Update allocation in Supabase
-        await supabase.from('driver_allocations').update({ sales_total: newSalesTotal, allocated_items: JSON.stringify(updatedAllocatedItems) }).eq('id', allocation.id);
-  // TODO: Refetch driver allocations here using context or effect so driver sees only undelivered products
+        await supabase.from('driver_allocations').update({ 
+          sales_total: newSalesTotal, 
+          allocated_items: JSON.stringify(updatedAllocatedItems) 
+        }).eq('id', allocation.id);
+        
+        // Immediately update local driver allocations state for real-time sync
+        setDriverAllocations(prevAllocations => 
+          prevAllocations.map(alloc => 
+            alloc.id === allocation.id 
+              ? { ...alloc, salesTotal: newSalesTotal, allocatedItems: updatedAllocatedItems }
+              : alloc
+          )
+        );
+        
+        console.log('Driver allocation updated in real-time:', {
+          allocationId: allocation.id,
+          newSalesTotal,
+          updatedItems: updatedAllocatedItems.length
+        });
       }
     }
   // --- Deduct inventory in UI and Supabase ---
@@ -829,6 +894,24 @@ export const Orders: React.FC = () => {
     console.log(`INVENTORY: Stock deducted for order ${updatedOrder.id}.`);
     console.log(`SALES_RECORD: Sale confirmed for order ${updatedOrder.id}, amount: ${formatCurrency(updatedOrder.total, currency)}.`);
     
+    // Real-time update products for driver allocation display
+    if (currentUser?.role === UserRole.Driver && targetOrder.status !== OrderStatus.Delivered) {
+      // Update local products state immediately for real-time UI sync
+      setProducts(prevProducts => 
+        prevProducts.map(product => {
+          const deliveredItem = targetOrder.orderItems.find(item => item.productId === product.id);
+          if (deliveredItem) {
+            // For drivers, this reduces their allocated stock, not warehouse stock
+            const currentDriverStock = getDriverAllocatedStock(product.id);
+            const newDriverStock = Math.max(0, currentDriverStock - deliveredItem.quantity);
+            console.log(`Driver ${currentUser.name} - Product ${product.name}: ${currentDriverStock} → ${newDriverStock}`);
+            return product; // Don't modify product.stock for drivers
+          }
+          return product;
+        })
+      );
+    }
+
     // Refresh data only if stock was actually deducted
     if (targetOrder.status !== OrderStatus.Delivered) {
       try {
@@ -837,7 +920,7 @@ export const Orders: React.FC = () => {
           await window.refreshProducts();
         }
         
-        // Refresh all other data including driver allocations
+        // Refresh all other data including driver allocations  
         await refetchData();
         
         console.log('Data refreshed after delivery confirmation - products and allocations updated');
@@ -1120,10 +1203,44 @@ export const Orders: React.FC = () => {
                   className="px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                   <option value="all">All Statuses</option>
-                  {Object.values(OrderStatus).map(status => (
-                      <option key={status} value={status}>{status}</option>
-                  ))}
+                  <option value={OrderStatus.Pending}>Pending</option>
+                  <option value={OrderStatus.Delivered}>Delivered</option>
               </select>
+              <select
+                  value={dateRangeFilter}
+                  onChange={(e) => {
+                      setDateRangeFilter(e.target.value as 'today' | 'this_week' | 'this_month' | 'all');
+                      setDeliveryDateFilter(''); // Clear specific date when range is selected
+                  }}
+                  className="px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                  <option value="all">All Delivery Dates</option>
+                  <option value="today">Today's Deliveries</option>
+                  <option value="this_week">This Week</option>
+                  <option value="this_month">This Month</option>
+              </select>
+              <input
+                  type="date"
+                  value={deliveryDateFilter}
+                  onChange={(e) => {
+                      setDeliveryDateFilter(e.target.value);
+                      setDateRangeFilter('all'); // Clear range when specific date is selected
+                  }}
+                  className="px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  title="Filter by specific delivery date"
+              />
+              {(deliveryDateFilter || dateRangeFilter !== 'all') && (
+                  <button
+                      onClick={() => {
+                          setDeliveryDateFilter('');
+                          setDateRangeFilter('all');
+                      }}
+                      className="px-3 py-2 text-sm bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50 rounded-lg transition-colors"
+                      title="Clear date filters"
+                  >
+                      Clear Date
+                  </button>
+              )}
             </div>
           </CardHeader>
           <CardContent>
